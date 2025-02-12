@@ -151,23 +151,46 @@ local function customHttpCallback(url, result, prompt, head, body)
     end
 end
 
--- 录音上传
+-- 录音上传 alist 版本
 local function upload()
-    local local_file = record.getFilePath()
     local time = os.time()
     local date = os.date("*t", time)
-    local date_str = string.format("%04d/%02d/%02d/%02d-%02d-%02d", date.year, date.month, date.day, date.hour, date.min, date.sec)
-    -- URL 结构: /record/18888888888/2022/12/12/12-00-00/10086_1668784328.wav
-    local url = record_upload_url .. "/"
-    url = url .. (sim.getNumber() or "unknown") .. "/"
-    url = url .. date_str .. "/"
-    url = url .. CALL_NUMBER .. "_" .. time .. "." .. record_extention
-
-    local function httpCallback(...)
-        customHttpCallback(url, ...)
-    end
-
-    sys.taskInit(http.request, "PUT", url, nil, record_upload_header, record_upload_body, 50000, httpCallback)
+    local date_str =
+        table.concat(
+        {
+            date.year .. "/",
+            string.format("%02d", date.month) .. "/",
+            string.format("%02d", date.day) .. "/",
+            string.format("%02d", date.hour) .. "-",
+            string.format("%02d", date.min) .. "-",
+            string.format("%02d", date.sec)
+        },
+        ""
+    )
+    local path = record_upload_path
+	local header = { ["Content-Type"] = "application/json; charset=utf-8" }
+	local body = { username = record_upload_user, password = record_upload_pass }
+	local json_data = json.encode(body)
+	require "http"
+	http.request("POST",record_upload_url .. "/api/auth/login",nil,header,json_data,30000,
+	function(result, statusCode, head, body)
+		log.info("Gettoken", result, statusCode, head, body)
+		if result and statusCode == "200" and body and body:find("token")then
+			local auth_data = json.decode(body)
+			local alist_token = auth_data.data.token
+			path = path .. (sim.getNumber() or "unknown") .. "/"
+			path = path .. date_str .. "/"
+			path = path .. CALL_NUMBER .. "_" .. time .. "." .. record_extention
+			record_upload_header["File-Path"] = path
+			record_upload_header["Authorization"] = alist_token
+			local function httpCallback(...)
+				customHttpCallback(record_upload_url .. path, ...)
+			end
+			sys.taskInit(http.request, "PUT", record_upload_url .. "/api/fs/put", nil, record_upload_header, record_upload_body, 50000, httpCallback)
+		else
+			log.info("Get Token Fail:NET ERROR or PASSWORD ERROR")
+		end
+	end)
 end
 
 ------------------------------------------------- 录音相关 --------------------------------------------------
