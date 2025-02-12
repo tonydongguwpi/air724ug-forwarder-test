@@ -8,7 +8,10 @@ local function trimSlash(url)
 end
 
 -- 录音上传接口
-local record_upload_url = trimSlash(nvm.get("UPLOAD_URL") or "") .. "/record"
+local record_upload_url = trimSlash(nvm.get("UPLOAD_URL") or "")
+local record_upload_user = nvm.get("UPLOAD_USER")
+local record_upload_pass = nvm.get("UPLOAD_PASS")
+local record_upload_path = nvm.get("UPLOAD_PATH")
 
 -- 录音格式, 1:pcm 2:wav 3:amrnb 4:speex
 local record_format = 2
